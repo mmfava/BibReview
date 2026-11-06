@@ -6,6 +6,10 @@ funções de formatação de referências no estilo Vancouver.
 import re
 import unidecode
 
+# Pre-compiled regular expressions for clean_text to avoid compilation overhead on every call
+_RE_SPECIAL_CHARS = re.compile(r"[^a-zA-Z0-9\s\.,;:\-\(\)\[\]]")
+_RE_WHITESPACE = re.compile(r"\s+")
+
 
 def clean_text(text: str, to_lower: bool = True) -> str:
     """
@@ -26,18 +30,18 @@ def clean_text(text: str, to_lower: bool = True) -> str:
     # Remove espaços no início/fim
     text = text.strip()
 
-    # Remove acentos
-    text = unidecode.unidecode(text)
+    # Bolt optimization: Only invoke unidecode if non-ASCII characters are present.
+    # ASCII text is invariant under unidecode, avoiding costly table lookups.
+    if not text.isascii():
+        text = unidecode.unidecode(text)
 
     # (Opcional) converte para minúsculas
     if to_lower:
         text = text.lower()
 
-    # Remove caracteres especiais em excesso, mantendo letras, dígitos, pontuação básica, e espaços
-    text = re.sub(r"[^a-zA-Z0-9\s\.,;:\-\(\)\[\]]", "", text)
-
-    # Remove múltiplos espaços
-    text = re.sub(r"\s+", " ", text).strip()
+    # Bolt optimization: Use pre-compiled regexes for special chars and whitespace removal
+    text = _RE_SPECIAL_CHARS.sub("", text)
+    text = _RE_WHITESPACE.sub(" ", text).strip()
 
     return text
 
