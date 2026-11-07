@@ -1,4 +1,6 @@
+from unittest.mock import MagicMock
 import pytest
+import requests
 
 from revsys.clients.crossref import CrossrefAPI
 
@@ -38,3 +40,25 @@ def test_crossref_process_data_cleaning(sample_crossref_data):
     assert rec.get('Journal') == 'Journal X'
     # Verifica formato de Authors Year
     assert 'Doe' in rec.get('Authors Year')
+
+
+def test_crossref_session_usage():
+    # 1. Verifica inicialização padrão com requests.Session
+    api = CrossrefAPI()
+    assert isinstance(api.session, requests.Session)
+
+    # 2. Verifica suporte a passagem de sessão customizada
+    mock_session = MagicMock(spec=requests.Session)
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"message": {"items": []}}
+    mock_session.get.return_value = mock_response
+
+    custom_api = CrossrefAPI(session=mock_session)
+    assert custom_api.session is mock_session
+
+    # 3. Verifica que fetch_data utiliza session.get
+    res = custom_api.fetch_data(query="machine learning", offset=0)
+    assert res == {"message": {"items": []}}
+    mock_session.get.assert_called_once()
+    assert mock_session.get.call_args[0][0] == custom_api.base_url
+    assert "query" in mock_session.get.call_args[1]["params"]
